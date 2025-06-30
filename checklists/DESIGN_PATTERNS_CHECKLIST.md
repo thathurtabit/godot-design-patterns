@@ -2,6 +2,36 @@
 
 **Remember**: Patterns are tools, not goals. Use them when they solve real problems, not because they're "good practice."
 
+- [Object-Oriented Design Patterns Checklist](#object-oriented-design-patterns-checklist)
+  - [Quick Reference for Better OO Design](#quick-reference-for-better-oo-design)
+    - [🎯 SOLID Principles Check](#-solid-principles-check)
+    - [🏗️ Common Design Patterns](#️-common-design-patterns)
+      - [Creational Patterns](#creational-patterns)
+      - [Structural Patterns](#structural-patterns)
+      - [Behavioral Patterns](#behavioral-patterns)
+    - [🔍 Code Smell Detection](#-code-smell-detection)
+      - [Class Design](#class-design)
+      - [Method Design](#method-design)
+      - [General Structure](#general-structure)
+    - [🎮 Godot-Specific OO Considerations](#-godot-specific-oo-considerations)
+      - [Node Architecture](#node-architecture)
+      - [Resource Management](#resource-management)
+    - [💡 Design Questions to Ask](#-design-questions-to-ask)
+      - [Before Writing a Class](#before-writing-a-class)
+      - [Before Writing a Method](#before-writing-a-method)
+      - [When Adding Features](#when-adding-features)
+    - [📋 Refactoring Checklist](#-refactoring-checklist)
+      - [Extract Method When:](#extract-method-when)
+      - [Extract Class When:](#extract-class-when)
+      - [Use Inheritance When:](#use-inheritance-when)
+      - [Use Composition When:](#use-composition-when)
+    - [🔧 Practical Tips](#-practical-tips)
+      - [Naming Conventions](#naming-conventions)
+      - [Interface Design](#interface-design)
+      - [Error Handling](#error-handling)
+    - [📚 Pattern Selection Guide](#-pattern-selection-guide)
+    - [🚀 Quick Wins](#-quick-wins)
+
 ## Quick Reference for Better OO Design
 
 ### 🎯 SOLID Principles Check
@@ -174,23 +204,3 @@
 5. **Use Meaningful Names**: Code should read like well-written prose
 6. **Write Tests First**: TDD helps drive better design
 7. **Refactor Regularly**: Don't let technical debt accumulate
-
----
-
-## Example: Analyzing Your TrainingProgressManager
-
-✅ **Good OO Practices Observed:**
-
-- Single Responsibility: Manages training progress state
-- Null safety with validation
-- Clear method names and documentation
-- Proper encapsulation with private methods
-- Type safety with enums
-- Immutable external interface (read-only properties)
-
-🔄 **Potential Improvements:**
-
-- Consider Strategy pattern for different training types
-- Could use Observer pattern for progress change notifications
-- Factory pattern for TrainingProgressData creation
-- Consider separating persistence logic (Single Responsibility)
