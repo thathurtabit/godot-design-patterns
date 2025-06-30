@@ -12,4 +12,6 @@ Quick Reference for Better OO Design
 
 ## Code organisation automation tools
 
-This uses Python (you'll need to install Python and have it available in your terminal/system PATH).
+Standardize and organize C# code in Godot projects
+
+- [Code Organization](organisation/README.md)
