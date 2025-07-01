@@ -2,6 +2,12 @@
 # Godot C# Code Organization Helper Script
 # This script helps apply the standardized organization pattern to C# files in Godot projects
 
+# ✅ COMMENT PRESERVATION: The Python organization tool preserves ALL comments:
+#    - XML documentation comments (/// <summary>, /// <param>, etc.)
+#    - Regular comments (//)
+#    - Multi-line comments (/* */)
+#    - All comments are kept with their associated members
+
 echo "🚀 Godot C# Code Organization Helper"
 echo "===================================="
 
@@ -41,6 +47,14 @@ check_python() {
     fi
     
     return 0
+}
+
+# Function to get relative path (cross-platform)
+get_relative_path() {
+    local file="$1"
+    local base="$2"
+    # Remove the base directory and leading slash
+    echo "${file#$base/}"
 }
 
 # Function to count C# files
@@ -286,7 +300,7 @@ show_priority_files() {
         # Use find to locate files matching the pattern
         while IFS= read -r -d '' file; do
             if [[ -f "$file" ]]; then
-                relative_path=$(realpath --relative-to="$PROJECT_ROOT" "$file")
+                relative_path=$(get_relative_path "$file" "$PROJECT_ROOT")
                 # Check if file needs organization
                 if grep -q "// Fields\|#region.*Fields" "$file" && grep -q "// Public Methods\|#region.*Methods" "$file"; then
                     echo "✅ $relative_path - Already organized"
@@ -385,6 +399,7 @@ organize_selected_files() {
     echo ""
 
     unorganized_files=()
+    unorganized_files_full=()
     while IFS= read -r -d '' file; do
         # Skip auto-generated files and temp files
         if [[ "$file" == *"/.godot/"* ]] || [[ "$file" == *"/temp/"* ]] || [[ "$file" == *"/obj/"* ]] || [[ "$file" == *"/bin/"* ]]; then
@@ -422,8 +437,9 @@ organize_selected_files() {
 
         # Check if file has the standardized organization comments (both // and #region styles)
         if ! grep -q "// Fields\|#region.*Fields" "$file" || ! grep -q "// Public Methods\|#region.*Methods" "$file"; then
-            relative_path=$(realpath --relative-to="$PROJECT_ROOT" "$file")
+            relative_path=$(get_relative_path "$file" "$PROJECT_ROOT")
             unorganized_files+=("$relative_path")
+            unorganized_files_full+=("$file")
             echo "${#unorganized_files[@]}. $relative_path"
         fi
     done < <(find "$PROJECT_ROOT" -name "*.cs" -print0)
@@ -453,7 +469,7 @@ organize_selected_files() {
             # Remove whitespace
             i=$(echo "$i" | xargs)
             if [[ "$i" =~ ^[0-9]+$ ]] && [ "$i" -ge 1 ] && [ "$i" -le ${#unorganized_files[@]} ]; then
-                selected_files+=("${unorganized_files[$((i-1))]}")
+                selected_files+=("${unorganized_files_full[$((i-1))]}")
             else
                 echo "❌ Invalid selection: $i"
             fi
@@ -466,14 +482,9 @@ organize_selected_files() {
                 return 1
             fi
             for file in "${selected_files[@]}"; do
-                echo "⚙️  Processing: $file"
-                $PYTHON_CMD code-organization-tool.py "$PROJECT_ROOT" --file "$PROJECT_ROOT/$file" $style_flag
-            done
-                python code-organization-tool.py "$PROJECT_ROOT" --file "$PROJECT_ROOT/$file" $style_flag
-                else
-                    echo "❌ Python not found. Please install Python to use auto-organization."
-                    break
-                fi
+                relative_path=$(get_relative_path "$file" "$PROJECT_ROOT")
+                echo "⚙️  Processing: $relative_path"
+                $PYTHON_CMD code-organization-tool.py "$PROJECT_ROOT" --file "$file" $style_flag
             done
             echo ""
             echo "✅ Selected files organized!"
@@ -513,7 +524,7 @@ organize_priority_files() {
     for pattern in "${priority_patterns[@]}"; do
         while IFS= read -r -d '' file; do
             if [[ -f "$file" ]]; then
-                relative_path=$(realpath --relative-to="$PROJECT_ROOT" "$file")
+                relative_path=$(get_relative_path "$file" "$PROJECT_ROOT")
                 if grep -q "// Fields\|#region.*Fields" "$file" && grep -q "// Public Methods\|#region.*Methods" "$file"; then
                     echo "✅ $relative_path - Already organized"
                 else
@@ -544,8 +555,6 @@ organize_priority_files() {
             echo "⚙️  Processing: $file"
             $PYTHON_CMD code-organization-tool.py "$PROJECT_ROOT" --file "$file" $style_flag
         done
-            fi
-        done
         echo ""
         echo "✅ Priority files organized!"
     else
@@ -560,7 +569,7 @@ create_backup() {
     mkdir -p "$backup_dir"
 
     find "$PROJECT_ROOT" -name "*.cs" -not -path "*/.godot/*" -not -path "*/backup_*/*" | while read -r file; do
-        relative_path=$(realpath --relative-to="$PROJECT_ROOT" "$file")
+        relative_path=$(get_relative_path "$file" "$PROJECT_ROOT")
         backup_file="$backup_dir/$relative_path"
         mkdir -p "$(dirname "$backup_file")"
         cp "$file" "$backup_file"

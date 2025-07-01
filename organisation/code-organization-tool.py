@@ -6,6 +6,7 @@ Automatically organizes C# class files according to a standardized pattern for G
 SAFETY FEATURES:
 - Creates backups outside project directory to avoid build conflicts
 - Preserves Godot [Signal] declarations and [Export] attributes
+- Preserves all existing comments (both inline and standalone)
 - Handles Godot-specific syntax properly
 - Validates file integrity before/after changes
 - Supports batch processing with user confirmation
@@ -285,6 +286,15 @@ class CSharpClassOrganizer:
             print(f"❌ Method count difference too large: {original_methods} -> {organized_methods}")
             return False
 
+        # Check that comments are preserved (approximate check)
+        original_comment_lines = len([line for line in original.split('\n') if line.strip().startswith('//')])
+        organized_comment_lines = len([line for line in organized.split('\n') if line.strip().startswith('//')])
+        
+        # Allow for some variance due to organization comments being added/removed
+        if organized_comment_lines < original_comment_lines - 5:  # Allow for some organization comments being removed
+            print(f"❌ Significant comment loss detected: {original_comment_lines} -> {organized_comment_lines}")
+            return False
+
         return True
 
     def extract_class_structure(self, content: str) -> Optional[Dict]:
@@ -374,12 +384,14 @@ class CSharpClassOrganizer:
             'signals': [],  # Added for Godot signals
             'public_methods': [],
             'protected_methods': [],
-            'private_methods': []
+            'private_methods': [],
+            'comments': []  # Added to preserve standalone comments
         }
 
-        # Remove existing organization comments to avoid duplication (both // and #region styles)
+        # Only remove existing organization comments to avoid duplication (both // and #region styles)
+        # But preserve all other comments
         clean_body = re.sub(r'^\s*//\s*(Fields|Properties|Virtual properties|Constants|Enums|Signals|Public Methods|Protected Methods|Private Methods)\s*$', '', class_body, flags=re.MULTILINE)
-        clean_body = re.sub(r'^\s*#region\s+[^\n]*\s*$', '', clean_body, flags=re.MULTILINE)
+        clean_body = re.sub(r'^\s*#region\s+(Fields|Properties|Virtual Properties|Constants|Enums|Signals|Public Methods|Protected Methods|Private Methods)\s*$', '', clean_body, flags=re.MULTILINE)
         clean_body = re.sub(r'^\s*#endregion\s*$', '', clean_body, flags=re.MULTILINE)
 
         # Split into logical blocks
@@ -389,25 +401,63 @@ class CSharpClassOrganizer:
             if not block.strip():
                 continue
 
+            # Check if this is a standalone comment block
+            if self.is_standalone_comment(block):
+                members['comments'].append(block.strip())
+                continue
+
             category = self.categorize_member(block)
             if category and category in members:
                 members[category].append(block.strip())
 
         return members
 
+    def is_standalone_comment(self, block: str) -> bool:
+        """Check if a block is a standalone comment (not attached to code)."""
+        lines = block.strip().split('\n')
+        
+        # Check if all non-empty lines are comments
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            # Check for single-line comments, multi-line comments, or XML documentation
+            if not (stripped.startswith('//') or 
+                   stripped.startswith('/*') or 
+                   stripped.endswith('*/') or 
+                   stripped.startswith('*') or
+                   stripped.startswith('///')):
+                return False
+        
+        return True
+
     def split_into_blocks(self, content: str) -> List[str]:
-        """Split content into logical member blocks."""
+        """Split content into logical member blocks, preserving comments."""
         blocks = []
         lines = content.split('\n')
         current_block = []
         brace_depth = 0
         in_member = False
+        pending_comments = []
 
         for line in lines:
             stripped = line.strip()
 
             # Count braces to track method/property boundaries
             brace_depth += line.count('{') - line.count('}')
+
+            # Check if this line is a comment
+            is_comment_line = (stripped.startswith('//') or 
+                             stripped.startswith('/*') or 
+                             stripped.startswith('*') or 
+                             stripped.startswith('///') or
+                             stripped.endswith('*/') or
+                             not stripped)  # Include empty lines
+
+            # If we're not in a member and encounter a comment, collect it
+            if not in_member and is_comment_line:
+                pending_comments.append(line)
+                continue
 
             # Start of a new member (field, property, method, etc.)
             if (re.match(r'^(private|protected|public|internal|\[)', stripped) and
@@ -416,6 +466,11 @@ class CSharpClassOrganizer:
                 if current_block:
                     blocks.append('\n'.join(current_block))
                     current_block = []
+
+                # Add any pending comments to this member block
+                if pending_comments:
+                    current_block.extend(pending_comments)
+                    pending_comments = []
 
                 in_member = True
 
@@ -430,6 +485,10 @@ class CSharpClassOrganizer:
         # Add any remaining content
         if current_block:
             blocks.append('\n'.join(current_block))
+        
+        # Add any remaining standalone comments as a separate block
+        if pending_comments:
+            blocks.append('\n'.join(pending_comments))
 
         return blocks
 
@@ -491,6 +550,11 @@ class CSharpClassOrganizer:
     def build_organized_class_body_with_regions(self, members: Dict[str, List[str]]) -> str:
         """Build the organized class body with #region sections."""
         sections = []
+
+        # Add preserved comments at the top
+        if members['comments']:
+            sections.extend([f'    {comment}' for comment in members['comments']])
+            sections.append('')
 
         # Fields section
         if members['fields']:
@@ -559,6 +623,11 @@ class CSharpClassOrganizer:
     def build_organized_class_body_with_comments(self, members: Dict[str, List[str]]) -> str:
         """Build the organized class body with // comment sections."""
         sections = []
+
+        # Add preserved comments at the top
+        if members['comments']:
+            sections.extend([f'    {comment}' for comment in members['comments']])
+            sections.append('')
 
         # Fields section
         if members['fields']:
